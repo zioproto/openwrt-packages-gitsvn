@@ -1,0 +1,51 @@
+commit a0fb2a1d4e2307a50d14ae8e1f6178897e98bec0
+Author: Ferry Huberts <ferry.huberts@pelagic.nl>
+Date:   Fri May 3 11:19:40 2013 +0200
+
+    txtinfo: prevent buffer overflow
+    
+    Reported-by: Saverio Proto <zioproto@gmail.com>
+    Tested-by: Saverio Proto <zioproto@gmail.com>
+    Signed-off-by: Ferry Huberts <ferry.huberts@pelagic.nl>
+
+diff --git a/lib/txtinfo/src/olsrd_txtinfo.c b/lib/txtinfo/src/olsrd_txtinfo.c
+index 39bb413..b56545d 100644
+--- a/lib/txtinfo/src/olsrd_txtinfo.c
++++ b/lib/txtinfo/src/olsrd_txtinfo.c
+@@ -64,6 +64,7 @@
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <errno.h>
++#include <assert.h>
+ 
+ #include "ipcalc.h"
+ #include "olsr.h"
+@@ -138,7 +139,7 @@ static char *outbuffer[MAX_CLIENTS];
+ static size_t outbuffer_size[MAX_CLIENTS];
+ static size_t outbuffer_written[MAX_CLIENTS];
+ static int outbuffer_socket[MAX_CLIENTS];
+-static int outbuffer_count;
++static int outbuffer_count = 0;
+ 
+ static struct timer_entry *writetimer_entry;
+ 
+@@ -255,6 +256,10 @@ ipc_action(int fd, void *data __attribute__ ((unused)), unsigned int flags __att
+ 
+   socklen_t addrlen = sizeof(pin);
+ 
++  if (outbuffer_count >= MAX_CLIENTS) {
++    return;
++  }
++
+   if ((ipc_connection = accept(fd, &pin.in, &addrlen)) == -1) {
+ #ifndef NODEBUG
+     olsr_printf(1, "(TXTINFO) accept()=%s\n", strerror(errno));
+@@ -739,6 +744,8 @@ send_info(unsigned int send_what, int the_socket)
+   /* version */
+   if ((send_what & SIW_VERSION) == SIW_VERSION) ipc_print_version(&abuf);
+ 
++  assert(outbuffer_count < MAX_CLIENTS);
++
+   outbuffer[outbuffer_count] = olsr_malloc(abuf.len, "txt output buffer");
+   outbuffer_size[outbuffer_count] = abuf.len;
+   outbuffer_written[outbuffer_count] = 0;
